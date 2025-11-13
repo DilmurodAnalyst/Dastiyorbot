@@ -395,12 +395,18 @@ async def download_youtube(url, quality_option, progress_msg, lang):
                 'preferredcodec': 'mp3',
                 'preferredquality': '192',
             }],
-            'quiet': True,
-            'no_warnings': True,
-            'socket_timeout': 60,
+            'quiet': False,
+            'no_warnings': False,
+            'socket_timeout': 120,
             'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            },
+            'extractor_args': {
+                'youtube': {
+                    'skip': ['dash', 'hls']
+                }
+            },
+            'retries': 3
         }
     else:
         quality_map = {
@@ -415,12 +421,18 @@ async def download_youtube(url, quality_option, progress_msg, lang):
         ydl_opts = {
             'format': f'{format_string}[ext=mp4]/best[ext=mp4]/best',
             'outtmpl': 'downloads/%(title)s.%(ext)s',
-            'quiet': True,
-            'no_warnings': True,
-            'socket_timeout': 60,
+            'quiet': False,
+            'no_warnings': False,
+            'socket_timeout': 120,
             'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            },
+            'extractor_args': {
+                'youtube': {
+                    'skip': ['dash', 'hls']
+                }
+            },
+            'retries': 3
         }
     
     os.makedirs('downloads', exist_ok=True)
@@ -508,25 +520,31 @@ async def download_facebook(url, quality_option, progress_msg, lang):
 
 def main():
     """Start the bot"""
-    application = (
-        Application.builder()
-        .token(BOT_TOKEN)
-        .read_timeout(30)
-        .write_timeout(30)
-        .connect_timeout(30)
-        .pool_timeout(30)
-        .build()
-    )
-    
-    # Add handlers
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("language", language_command))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_url))
-    application.add_handler(CallbackQueryHandler(button_callback))
-    
-    logger.info("🚀 Advanced Media Downloader Bot started!")
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    try:
+        application = (
+            Application.builder()
+            .token(BOT_TOKEN)
+            .read_timeout(60)
+            .write_timeout(60)
+            .connect_timeout(60)
+            .pool_timeout(60)
+            .build()
+        )
+        
+        # Add handlers
+        application.add_handler(CommandHandler("start", start))
+        application.add_handler(CommandHandler("help", help_command))
+        application.add_handler(CommandHandler("language", language_command))
+        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_url))
+        application.add_handler(CallbackQueryHandler(button_callback))
+        
+        logger.info("🚀 Advanced Media Downloader Bot started!")
+        application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
+    except KeyboardInterrupt:
+        logger.info("Bot stopped by user")
+    except Exception as e:
+        logger.error(f"Bot error: {e}")
+        raise
 
 if __name__ == '__main__':
     main()
