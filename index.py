@@ -1,3 +1,6 @@
+# This is a Python script for a Telegram bot that downloads media from various platforms.
+# It uses the telegram and yt_dlp libraries to handle requests and downloads.
+# Ensure you have the required libraries installed before running the bot.
 import os
 import logging
 import re
@@ -382,6 +385,22 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Download error: {e}")
         await progress_msg.edit_text(get_text(lang, 'error', error=str(e)))
 
+def get_available_browser_for_cookies():
+    """Detect which browser is available for cookie extraction"""
+    # Try common browsers in order of likelihood
+    browsers = ['chrome', 'firefox', 'edge', 'safari']
+    for browser in browsers:
+        try:
+            # Test if browser profile exists by attempting a dummy yt-dlp call
+            # This is a lightweight check
+            import shutil
+            browser_cmd = shutil.which(browser)
+            if browser_cmd or browser in ['chrome', 'firefox', 'edge']:
+                return browser
+        except:
+            pass
+    return None
+
 async def download_youtube(url, quality_option, progress_msg, lang):
     """Download from YouTube with quality selection"""
     await progress_msg.edit_text(get_text(lang, 'downloading_youtube'))
@@ -408,6 +427,14 @@ async def download_youtube(url, quality_option, progress_msg, lang):
             },
             'retries': 3
         }
+        # If user provided a cookies file via env var, attach it to yt-dlp options
+        cookies_file = os.getenv('YT_COOKIES_FILE')
+        if cookies_file:
+            if os.path.exists(cookies_file):
+                ydl_opts['cookiefile'] = cookies_file
+                logger.info(f"Using YouTube cookies file from YT_COOKIES_FILE: {cookies_file}")
+            else:
+                logger.warning(f"YT_COOKIES_FILE is set but file does not exist: {cookies_file}")
     else:
         quality_map = {
             'yt_360p': 'best[height<=360]',
@@ -434,6 +461,14 @@ async def download_youtube(url, quality_option, progress_msg, lang):
             },
             'retries': 3
         }
+    # If user provided a cookies file via env var, attach it to yt-dlp options
+    cookies_file = os.getenv('YT_COOKIES_FILE')
+    if cookies_file:
+        if os.path.exists(cookies_file):
+            ydl_opts['cookiefile'] = cookies_file
+            logger.info(f"Using YouTube cookies file from YT_COOKIES_FILE: {cookies_file}")
+        else:
+            logger.warning(f"YT_COOKIES_FILE is set but file does not exist: {cookies_file}")
     
     os.makedirs('downloads', exist_ok=True)
     
@@ -450,7 +485,50 @@ async def download_youtube(url, quality_option, progress_msg, lang):
             
             return filename
     except Exception as e:
-        logger.error(f"YouTube download error: {e}")
+        logger.error(f"YouTube download error (attempt 1): {e}")
+        msg = str(e)
+        
+        # If YouTube requires authentication, try retry with cookies_from_browser
+        if 'Sign in to confirm' in msg or 'Use --cookies' in msg:
+            logger.info("Attempting to extract cookies from browser...")
+            browser = get_available_browser_for_cookies()
+            
+            if browser:
+                try:
+                    # Add cookies_from_browser option and retry
+                    ydl_opts['cookies_from_browser'] = (browser,)
+                    logger.info(f"Retrying with cookies_from_browser={browser}")
+                    
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        info = ydl.extract_info(url, download=True)
+                        filename = ydl.prepare_filename(info)
+                        
+                        if quality_option == 'yt_audio':
+                            filename = os.path.splitext(filename)[0] + '.mp3'
+                        
+                        if not os.path.exists(filename):
+                            raise FileNotFoundError(f"Downloaded file not found: {filename}")
+                        
+                        logger.info(f"Successfully downloaded with {browser} cookies")
+                        return filename
+                except Exception as retry_error:
+                    logger.error(f"YouTube download error (attempt 2 with {browser}): {retry_error}")
+                    # Fall through to show user the helpful error message
+            
+            # If both attempts failed, provide user with clear instructions
+            raise Exception(
+                "❌ YouTube requires authentication for this video.\n\n"
+                "🔧 **Fix options:**\n\n"
+                "**Option 1: Use your browser's cookies (automatic)**\n"
+                "  Make sure you're logged into YouTube in Chrome/Firefox\n"
+                "  The bot will try to use your browser's cookies\n\n"
+                "**Option 2: Set up cookies file manually**\n"
+                "  1. Export cookies: `yt-dlp --cookies-from-browser chrome --skip-download 'https://www.youtube.com'`\n"
+                "  2. This creates a cookies.txt file\n"
+                "  3. Run bot with: `export YT_COOKIES_FILE=/path/to/cookies.txt && python index.py`\n\n"
+                "📖 Learn more: https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp"
+            ) from e
+        
         raise
 
 async def download_instagram(url, content_type, progress_msg, lang):
@@ -530,7 +608,7 @@ def main():
             .pool_timeout(60)
             .build()
         )
-        
+
         # Add handlers
         application.add_handler(CommandHandler("start", start))
         application.add_handler(CommandHandler("help", help_command))
