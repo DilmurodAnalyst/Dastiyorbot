@@ -15,8 +15,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Your bot token from BotFather (use environment variable in production)
-BOT_TOKEN = os.getenv('BOT_TOKEN', '8466445833:AAG5mdiH8kwR40dYX4glVPbFToZdSW3GGfo')
+# Your bot token from BotFather (MUST be set via environment variable)
+BOT_TOKEN = os.getenv('BOT_TOKEN')
+if not BOT_TOKEN:
+    raise ValueError(
+        "❌ BOT_TOKEN environment variable is not set!\n"
+        "Please set it before running the bot:\n"
+        "  export BOT_TOKEN='your_token_here'\n"
+        "  python index.py"
+    )
 
 # Translations dictionary
 TRANSLATIONS = {
