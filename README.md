@@ -155,6 +155,84 @@ Increase socket timeout in download functions (currently 60s)
 - Check if content is public
 - Verify yt-dlp is up to date: `pip install --upgrade yt-dlp`
 
+## Deployment
+
+### Option 1: Local Machine / VPS
+```bash
+# Set bot token
+export BOT_TOKEN='your_bot_token_here'
+
+# Optional: Set YouTube cookies for protected videos
+export YT_COOKIES_FILE='/path/to/cookies.txt'
+
+# Run the bot
+python index.py
+```
+
+### Option 2: GitHub Actions (Continuous Deployment)
+
+1. **Add Bot Token as Secret**:
+   - Go to: Settings → Secrets and Variables → Actions
+   - Click "New repository secret"
+   - Name: `BOT_TOKEN`
+   - Value: Your Telegram bot token
+
+2. **Optional: Add YouTube Cookies**:
+   - Name: `YT_COOKIES_FILE`
+   - Value: Base64-encoded cookies.txt content (or path)
+
+3. **The bot will run automatically** with every push via `.github/workflows/deploy-bot.yml`
+
+### Option 3: Docker (Production)
+
+```bash
+# Build Docker image
+docker build -t dastiyorbot .
+
+# Run container
+docker run -e BOT_TOKEN='your_token' dastiyorbot
+```
+
+### Option 4: Heroku / Railway / Replit
+
+1. Fork this repository
+2. Connect your Git repo to the hosting service
+3. Add environment variables in the platform's dashboard:
+   - `BOT_TOKEN` = Your bot token
+   - `YT_COOKIES_FILE` = (optional) path to cookies file
+4. Deploy!
+
+## YouTube Authentication (Cookies Setup)
+
+Some YouTube videos require authentication. To fix this:
+
+**Step 1: Export Your Browser's YouTube Cookies**
+
+```bash
+# Using yt-dlp with your browser
+yt-dlp --cookies-from-browser chrome --skip-download 'https://www.youtube.com'
+```
+
+This creates a `cookies.txt` file.
+
+**Step 2: Use Cookies with Bot**
+
+```bash
+# Before running the bot:
+export YT_COOKIES_FILE='/path/to/cookies.txt'
+export BOT_TOKEN='your_token'
+python index.py
+```
+
+Alternatively, for GitHub Actions:
+- Add `YT_COOKIES_FILE` to repository secrets
+
+**Supported Browsers:**
+- Chrome
+- Firefox  
+- Edge
+- Safari
+
 ## Dependencies
 
 - `python-telegram-bot==20.5` - Telegram Bot API
